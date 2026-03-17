@@ -1,0 +1,74 @@
+#include <iostream>
+#include <vector>
+#include <cmath> // для sqrt
+
+using namespace std;
+
+int main()
+{
+    // Установка локали для корректного вывода русских сообщений (для Windows)
+    setlocale(LC_ALL, "rus");
+
+    // Инициализируем исходный вектор
+    vector<int> t = {0, 1, 2, 3 ,8, 12, 13, 14, 16, 17, 19};
+
+    cout << "Исходный вектор: ";
+    for (int x : t) cout << x << " ";
+    cout << endl;
+
+    // Проверяем, упорядочен ли вектор по возрастанию (неубывание)
+    bool sorted = true;
+    for (size_t i = 1; i < t.size(); i++)
+    {
+        if (t[i] < t[i - 1])
+        {
+            sorted = false;
+            break;
+        }
+    }
+
+    if (sorted)
+        cout << "Вектор упорядочен по возрастанию." << endl;
+    else
+        cout << "Вектор не упорядочен по возрастанию." << endl;
+
+    // Создаём новый вектор для простых чисел
+    vector<int> prime;
+
+    // Перебираем все элементы исходного вектора
+    for (int num : t)
+    {
+        bool isPrime = true;
+
+        // Проверяем делители от 2 до sqrt(num)
+        for (int d = 2; d * d <= num; d++)
+        {
+            if (num % d == 0)
+            {
+                isPrime = false;
+            }
+        }
+        if (isPrime)
+        {
+            prime.push_back(num);
+        }
+    }
+
+    // Вывод результата
+    if (prime.empty())
+    {
+        cout << "Простых чисел в исходном векторе нет." << endl;
+    }
+    else
+    {
+        cout << "Простые числа из исходного вектора: ";
+        for (int p : prime)
+        {
+            cout << p << " ";
+        }
+        cout << endl;
+    }
+
+    system("PAUSE");
+    return 0;
+}

@@ -1,6 +1,8 @@
 ﻿#include <iostream>
 #include <vector>
 #include <iomanip>
+#include <cstdlib>
+#include <string>
 
 using namespace std;
 
@@ -46,13 +48,11 @@ bool isConnected() // проверка связности графа обход�
     {
         int v = queue[k]; // текущая вершина
         for (int u : L[v]) // перебираем соседей
-        {
             if (!visited[u]) // если сосед ещё не посещён
             {
                 visited[u] = true; // отмечаем его
                 queue.push_back(u); // добавляем в очередь
             }
-        }
     }
     return (int)queue.size() == n; // связный, если посещены все вершины
 }
@@ -84,7 +84,7 @@ bool checkOre() // достаточное условие Оре: d(u) + d(v) >= 
     return n >= 3; // условие выполнено
 }
 
-// Перебор с возвратом (шаги 2-3 алгоритма). cycle = true - ищем цикл, false - путь
+// Перебор с возвратом. cycle = true - ищем цикл, false - путь
 bool hamilton(vector<int>& path, vector<bool>& inPath, bool cycle)
 {
     int i = (int)path.size(); // текущая длина пути
@@ -102,7 +102,7 @@ bool hamilton(vector<int>& path, vector<bool>& inPath, bool cycle)
         path.push_back(u); inPath[u] = true; // добавляем вершину в путь
         if (hamilton(path, inPath, cycle))
         {
-            return true; // продолжаем поиск
+            return true; // цикл (путь) найден
         }
         path.pop_back(); inPath[u] = false; // возврат на шаг назад
     }
@@ -207,6 +207,81 @@ void printInfo() // вывод списков смежности, степене
         << (checkOre() ? "выполняется" : "не выполняется") << endl;
 }
 
+bool buildByTheorem(vector<int>& path) // построение цикла без перебора, когда выполнено условие Дирака или Оре
+{
+    vector<int> c(n); // вершины, расставленные по кругу
+    for (int i = 0; i < n; i++)
+    {
+        c[i] = i + 1; // начальный порядок: v1, v2, ..., vn
+    }
+    while (true) // пока в круге есть соседние вершины без ребра между ними
+    {
+        int gap = -1; // позиция "разрыва"
+        for (int i = 0; i < n; i++)
+        {
+            if (!adj[c[i]][c[(i + 1) % n]]) // соседние по кругу вершины не смежны
+            {
+                gap = i;
+                break;
+            }
+        }
+        if (gap == -1)
+        {
+            break; // разрывов нет - круг стал гамильтоновым циклом
+        }
+        int a = c[gap]; // вершина перед разрывом
+        int b = c[(gap + 1) % n]; // вершина после разрыва
+        int j = -1; // позиция, до которой будем разворачивать участок
+        for (int k = 2; k < n; k++) // идём по кругу после вершины b
+        {
+            int x = c[(gap + k) % n]; // вершина на расстоянии k от a
+            int y = c[(gap + k + 1) % n]; // следующая за ней
+            if (adj[a][x] && adj[b][y]) // a смежна с x, b смежна с y
+            {
+                j = k;
+                break;
+            }
+        }
+        if (j == -1)
+        {
+            return false; // по теореме такого не бывает, но на всякий случай
+        }
+        for (int l = 1, r = j; l < r; l++, r--) // разворачиваем участок b ... x
+        {
+            int t = c[(gap + l) % n];
+            c[(gap + l) % n] = c[(gap + r) % n];
+            c[(gap + r) % n] = t;
+        }
+    }
+    int start = 0; // ищем вершину 1, чтобы начать цикл с неё
+    while (c[start] != 1)
+    {
+        start++;
+    }
+    path.clear();
+    for (int i = 0; i < n; i++)
+    {
+        path.push_back(c[(start + i) % n]); // записываем цикл, начиная с v1
+    }
+    return true;
+}
+
+bool solveCycle(vector<int>& path, string& method) // поиск гамильтонова цикла: сначала теоремы, потом перебор
+{
+    if (checkDirac()) // способ 1: условие Дирака
+    {
+        method = "теорема Дирака (d(v) >= n/2 для всех вершин), перебор не нужен";
+        return buildByTheorem(path);
+    }
+    if (checkOre()) // способ 2: условие Оре
+    {
+        method = "теорема Оре (d(u) + d(v) >= n для несмежных вершин), перебор не нужен";
+        return buildByTheorem(path);
+    }
+    method = "перебор с возвратом (условия Дирака и Оре не выполняются)"; // способ 3: перебор
+    return isConnected() && findCycle(path);
+}
+
 int main() // главная функция
 {
     setlocale(LC_ALL, "rus");
@@ -257,15 +332,19 @@ int main() // главная функция
     printInfo(); // выводим степени и проверяем достаточные условия
 
     vector<int> path; // найденный путь или цикл
-    if (isConnected() && findCycle(path)) // ищем гамильтонов цикл перебором
+    string method; // каким способом найден цикл
+    if (solveCycle(path, method)) // пробуем Дирака, Оре, а если не вышло - перебор
     {
-        cout << "\nГраф является гамильтоновым." << endl;
+        cout << "\nГамильтонова цепь (цикл без последнего ребра): ";
+        printPath(path, false); // цепь получается удалением одного ребра цикла
         cout << "Гамильтонов цикл: ";
         printPath(path, true); // выводим цикл
-        vector<int> p(1, 1); vector<bool> used(n + 1, false); used[1] = true;
-        cout << "Всего различных гамильтоновых циклов: " << countCycles(p, used) << endl;
-        cout << "Гамильтонова цепь (цикл без последнего ребра): ";
-        printPath(path, false); // цепь получается удалением одного ребра цикла
+        if (!checkDirac() && !checkOre()) // количество циклов считаем только при переборе
+        {
+            vector<int> p(1, 1); vector<bool> used(n + 1, false); used[1] = true;
+            cout << "Всего различных гамильтоновых циклов: " << countCycles(p, used) << endl;
+        }
+        cout << "\nГраф является гамильтоновым. Метод: " << method << "." << endl;
     }
     else
     {
@@ -299,16 +378,14 @@ int main() // главная функция
         }
         buildLists(); // пересоставляем списки смежности
         printInfo(); // выводим новые степени
-        if (findCycle(path)) // ищем цикл в изменённом графе
+        if (solveCycle(path, method)) // ищем цикл в изменённом графе тем же способом
         {
-            cout << "\nИзменённый граф является гамильтоновым." << endl;
-            cout << "Гамильтонов цикл: ";
+            cout << "\nГамильтонов цикл: ";
             printPath(path, true);
+            cout << "\nИзменённый граф является гамильтоновым. Метод: " << method << "." << endl;
         }
     }
 
-
-system("PAUSE");
-return 0;
-
+    system("PAUSE");
+    return 0;
 }

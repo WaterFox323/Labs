@@ -1,4 +1,5 @@
-﻿#include <iostream>
+﻿// 7 лаба
+#include <iostream>
 #include <string>
 #include <vector>
 #include <queue>
@@ -9,7 +10,7 @@
 #include <ctime>
 #ifdef _WIN32
 #define NOMINMAX // иначе windows.h объявляет макрос max, и numeric_limits<streamsize>::max() не компилируется
-#include <windows.h>
+#include<windows.h>
 #endif
 
 using namespace std;
@@ -308,7 +309,7 @@ class MazePicture
 public:
     // Конструктор: рисует лабиринт p_maze и путь p_path в буфер пикселей.
     MazePicture(const Maze& p_maze, const vector<Cell>& p_path)
-        : width{ p_maze.getCols() * CELL }, height{ p_maze.getRows() * CELL }, pixels(width * height, WHITE)
+        : width{ p_maze.getCols() * CELL }, height{ p_maze.getRows() * CELL }, pixels(width* height, WHITE)
     {
         for (int i = 0; i < p_maze.getRows(); i++)
             for (int j = 0; j < p_maze.getCols(); j++)

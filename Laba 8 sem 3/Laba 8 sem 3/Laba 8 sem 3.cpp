@@ -1,4 +1,6 @@
-﻿#include <iostream>
+﻿// 8 лаба
+
+#include <iostream>
 #include <string>
 #include <vector>
 #include <iomanip>
@@ -176,7 +178,7 @@ private:
                     next = v;
             cur = next;           // если next = 0, все оставшиеся вершины недостижимы - конец
             if (cur != 0)
-                selected[cur] = true; // шаги 6-7: вершина выделена, переходим к шагу 4
+                selected[cur] = true; // шаг 5: вершина выделена; шаг 6 не нужен (ищем пути во все города); шаг 7 - к шагу 4
         }
     }
 

@@ -10,7 +10,7 @@
 #include <ctime>
 #ifdef _WIN32
 #define NOMINMAX // иначе windows.h объявляет макрос max, и numeric_limits<streamsize>::max() не компилируется
-#include<windows.h>
+#include <windows.h>
 #endif
 
 using namespace std;
@@ -35,19 +35,23 @@ struct Cell
 // Если введено не число, сообщает об ошибке, очищает поток и спрашивает снова.
 int readInt(string prompt)
 {
-    int x;
-    while (true)
+    int x{};
+    bool ok{ false }; // введено ли целое число
+    while (!ok)
     {
         cout << prompt;
         if (cin >> x)
         {
-            cin.ignore(numeric_limits<streamsize>::max(), '\n'); // убираем остаток строки
-            return x;
+            ok = true;
         }
-        cout << "  Ошибка: нужно ввести целое число." << endl;
-        cin.clear(); // сбрасываем флаг ошибки потока
-        cin.ignore(numeric_limits<streamsize>::max(), '\n'); // удаляем неверный ввод
+        else
+        {
+            cout << "  Ошибка: нужно ввести целое число." << endl;
+            cin.clear(); // сбрасываем флаг ошибки потока
+        }
+        cin.ignore(numeric_limits<streamsize>::max(), '\n'); // убираем остаток строки (или неверный ввод)
     }
+    return x;
 }
 
 // ---------- Класс «Лабиринт» ----------
@@ -69,8 +73,12 @@ public:
     void generate(int p_wallPercent)
     {
         for (int i = 0; i < rows; i++)
+        {
             for (int j = 0; j < cols; j++)
+            {
                 cells[i][j] = (rand() % 100 < p_wallPercent) ? 1 : 0;
+            }
+        }
         cells[0][0] = 0;               // вход - клетка (1, 1)
         cells[rows - 1][cols - 1] = 0; // выход - клетка (m, n)
     }
@@ -107,22 +115,27 @@ public:
     // идёт только по проходимым клеткам, и каждый ход - в соседнюю клетку.
     bool checkPath(const vector<Cell>& p_path) const
     {
-        if (p_path.empty())
-            return false;
-        Cell first = p_path.front();
-        Cell last = p_path.back();
-        if (first.row != getStart().row || first.col != getStart().col)
-            return false;
-        if (last.row != getFinish().row || last.col != getFinish().col)
-            return false;
-        for (int k = 0; k < static_cast<int>(p_path.size()); k++)
+        bool result{ true }; // результат проверки
+        if (p_path.empty()
+            || p_path.front().row != getStart().row || p_path.front().col != getStart().col
+            || p_path.back().row != getFinish().row || p_path.back().col != getFinish().col)
         {
-            if (!isFree(p_path[k].row, p_path[k].col))
-                return false;
-            if (k > 0 && abs(p_path[k].row - p_path[k - 1].row) + abs(p_path[k].col - p_path[k - 1].col) != 1)
-                return false;
+            result = false; // путь пуст, или не начинается во входе, или не кончается в выходе
         }
-        return true;
+        else
+        {
+            int k = 0; // номер проверяемой клетки пути
+            while (k < static_cast<int>(p_path.size()) && result)
+            {
+                if (!isFree(p_path[k].row, p_path[k].col)
+                    || (k > 0 && abs(p_path[k].row - p_path[k - 1].row) + abs(p_path[k].col - p_path[k - 1].col) != 1))
+                {
+                    result = false; // клетка - стена, или ход не в соседнюю клетку
+                }
+                k++;
+            }
+        }
+        return result;
     }
 
     // Выводит лабиринт в консоль: # - стена, . - проход, * - путь, S - вход, F - выход.
@@ -130,18 +143,28 @@ public:
     {
         vector<string> view(rows, string(cols, '.'));
         for (int i = 0; i < rows; i++)
+        {
             for (int j = 0; j < cols; j++)
+            {
                 if (cells[i][j] == 1)
+                {
                     view[i][j] = '#';
+                }
+            }
+        }
         for (int k = 0; k < static_cast<int>(p_path.size()); k++)
+        {
             view[p_path[k].row][p_path[k].col] = '*';
+        }
         view[0][0] = 'S';
         view[rows - 1][cols - 1] = 'F';
         for (int i = 0; i < rows; i++)
         {
             cout << "  ";
             for (int j = 0; j < cols; j++)
+            {
                 cout << view[i][j] << ' ';
+            }
             cout << endl;
         }
     }
@@ -212,28 +235,34 @@ public:
             }
         }
 
-        vector<Cell> path;
-        if (mark[finish.row][finish.col] == NO_MARK)
-            return path; // волна не дошла до выхода - пути нет
-
-        // 2. Обратный ход: от выхода к входу по клеткам с пометкой на 1 меньше.
-        Cell cur = finish;
-        path.push_back(cur);
-        while (mark[cur.row][cur.col] != 0)
+        vector<Cell> path; // если волна не дошла до выхода, путь останется пустым - пути нет
+        if (mark[finish.row][finish.col] != NO_MARK)
         {
-            for (int d = 0; d < 4; d++)
-            {
-                int r = cur.row + DR[d];
-                int c = cur.col + DC[d];
-                if (p_maze.isInside(r, c) && mark[r][c] == mark[cur.row][cur.col] - 1)
-                {
-                    cur = { r, c };
-                    break;
-                }
-            }
+            // 2. Обратный ход: от выхода к входу по клеткам с пометкой на 1 меньше.
+            Cell cur = finish;
             path.push_back(cur);
+            while (mark[cur.row][cur.col] != 0)
+            {
+                int d = 0;          // номер направления
+                bool found{ false }; // найден ли сосед с пометкой на 1 меньше
+                while (d < 4 && !found)
+                {
+                    int r = cur.row + DR[d];
+                    int c = cur.col + DC[d];
+                    if (p_maze.isInside(r, c) && mark[r][c] == mark[cur.row][cur.col] - 1)
+                    {
+                        cur = { r, c };
+                        found = true;
+                    }
+                    else
+                    {
+                        d++; // переходим к следующему направлению
+                    }
+                }
+                path.push_back(cur);
+            }
+            reverse(path.begin(), path.end()); // путь собран с конца - разворачиваем
         }
-        reverse(path.begin(), path.end()); // путь собран с конца - разворачиваем
         return path;
     }
 };
@@ -270,23 +299,27 @@ private:
         if (cur.row == finish.row && cur.col == finish.col)
         {
             if (optimalWay.empty() || way.size() < optimalWay.size())
-                optimalWay = way; // найден более короткий путь
-            return;
-        }
-        int len = static_cast<int>(way.size()); // столько ходов будет сделано до соседа
-        for (int d = 0; d < 4; d++)
-        {
-            int r = cur.row + DR[d];
-            int c = cur.col + DC[d];
-            bool better = optimalWay.empty() || len + 1 < static_cast<int>(optimalWay.size());
-            // Идём в соседа, только если он проходим, попадаем в него короче, чем раньше
-            // (значит, его нет в Way), и текущий путь ещё может стать оптимальным.
-            if (p_maze.isFree(r, c) && len < dist[r][c] && better)
             {
-                dist[r][c] = len;
-                way.push_back({ r, c }); // добавить Neighbor в Way
-                tryStep(p_maze, { r, c });
-                way.pop_back();          // возврат: извлечь из Way
+                optimalWay = way; // найден более короткий путь
+            }
+        }
+        else
+        {
+            int len = static_cast<int>(way.size()); // столько ходов будет сделано до соседа
+            for (int d = 0; d < 4; d++)
+            {
+                int r = cur.row + DR[d];
+                int c = cur.col + DC[d];
+                bool better = optimalWay.empty() || len + 1 < static_cast<int>(optimalWay.size());
+                // Идём в соседа, только если он проходим, попадаем в него короче, чем раньше
+                // (значит, его нет в Way), и текущий путь ещё может стать оптимальным.
+                if (p_maze.isFree(r, c) && len < dist[r][c] && better)
+                {
+                    dist[r][c] = len;
+                    way.push_back({ r, c }); // добавить Neighbor в Way
+                    tryStep(p_maze, { r, c });
+                    way.pop_back();          // возврат: извлечь из Way
+                }
             }
         }
     }
@@ -309,19 +342,25 @@ class MazePicture
 public:
     // Конструктор: рисует лабиринт p_maze и путь p_path в буфер пикселей.
     MazePicture(const Maze& p_maze, const vector<Cell>& p_path)
-        : width{ p_maze.getCols() * CELL }, height{ p_maze.getRows() * CELL }, pixels(width* height, WHITE)
+        : width{ p_maze.getCols() * CELL }, height{ p_maze.getRows() * CELL }, pixels(width * height, WHITE)
     {
         for (int i = 0; i < p_maze.getRows(); i++)
+        {
             for (int j = 0; j < p_maze.getCols(); j++)
             {
                 unsigned color = p_maze.isFree(i, j) ? WHITE : WALL_COLOR;
                 if (i == 0 && j == 0)
+                {
                     color = START_COLOR;
+                }
                 if (i == p_maze.getRows() - 1 && j == p_maze.getCols() - 1)
+                {
                     color = FINISH_COLOR;
+                }
                 fillRect(j * CELL, i * CELL, CELL, CELL, GRID_COLOR);              // рамка клетки
                 fillRect(j * CELL + 1, i * CELL + 1, CELL - 2, CELL - 2, color); // сама клетка
             }
+        }
         // Путь - красная линия через центры клеток.
         for (int k = 1; k < static_cast<int>(p_path.size()); k++)
         {
@@ -335,38 +374,42 @@ public:
     bool saveBmp(string p_fileName) const
     {
         ofstream out(p_fileName, ios::binary);
-        if (!out)
-            return false;
-        int rowSize = (width * 3 + 3) / 4 * 4; // строка BMP дополняется до кратной 4 байтам
-        int dataSize = rowSize * height;
-        out << 'B' << 'M';
-        writeInt(out, 54 + dataSize, 4); // размер файла
-        writeInt(out, 0, 4);             // зарезервировано
-        writeInt(out, 54, 4);            // смещение до пикселей
-        writeInt(out, 40, 4);            // размер заголовка BITMAPINFOHEADER
-        writeInt(out, width, 4);
-        writeInt(out, height, 4);
-        writeInt(out, 1, 2);             // число плоскостей
-        writeInt(out, 24, 2);            // бит на пиксель
-        writeInt(out, 0, 4);             // без сжатия
-        writeInt(out, dataSize, 4);
-        writeInt(out, 2835, 4);          // 72 точки на дюйм
-        writeInt(out, 2835, 4);
-        writeInt(out, 0, 4);
-        writeInt(out, 0, 4);
-        for (int y = height - 1; y >= 0; y--) // в BMP строки идут снизу вверх
+        bool opened = static_cast<bool>(out); // удалось ли открыть файл
+        if (opened)
         {
-            for (int x = 0; x < width; x++)
+            int rowSize = (width * 3 + 3) / 4 * 4; // строка BMP дополняется до кратной 4 байтам
+            int dataSize = rowSize * height;
+            out << 'B' << 'M';
+            writeInt(out, 54 + dataSize, 4); // размер файла
+            writeInt(out, 0, 4);             // зарезервировано
+            writeInt(out, 54, 4);            // смещение до пикселей
+            writeInt(out, 40, 4);            // размер заголовка BITMAPINFOHEADER
+            writeInt(out, width, 4);
+            writeInt(out, height, 4);
+            writeInt(out, 1, 2);             // число плоскостей
+            writeInt(out, 24, 2);            // бит на пиксель
+            writeInt(out, 0, 4);             // без сжатия
+            writeInt(out, dataSize, 4);
+            writeInt(out, 2835, 4);          // 72 точки на дюйм
+            writeInt(out, 2835, 4);
+            writeInt(out, 0, 4);
+            writeInt(out, 0, 4);
+            for (int y = height - 1; y >= 0; y--) // в BMP строки идут снизу вверх
             {
-                unsigned p = pixels[y * width + x];
-                out.put(static_cast<char>(p & 0xFF));         // синий
-                out.put(static_cast<char>((p >> 8) & 0xFF));  // зелёный
-                out.put(static_cast<char>((p >> 16) & 0xFF)); // красный
+                for (int x = 0; x < width; x++)
+                {
+                    unsigned p = pixels[y * width + x];
+                    out.put(static_cast<char>(p & 0xFF));         // синий
+                    out.put(static_cast<char>((p >> 8) & 0xFF));  // зелёный
+                    out.put(static_cast<char>((p >> 16) & 0xFF)); // красный
+                }
+                for (int k = width * 3; k < rowSize; k++)
+                {
+                    out.put(0);
+                }
             }
-            for (int k = width * 3; k < rowSize; k++)
-                out.put(0);
         }
-        return true;
+        return opened;
     }
 
     // Показывает рисунок в графическом окне (в Windows). Возврат - после закрытия окна.
@@ -422,14 +465,20 @@ private:
     void fillRect(int x, int y, int w, int h, unsigned color)
     {
         for (int yy = max(y, 0); yy < min(y + h, height); yy++)
+        {
             for (int xx = max(x, 0); xx < min(x + w, width); xx++)
+            {
                 pixels[yy * width + xx] = color;
+            }
+        }
     }
     // Записывает целое число в файл младшими байтами вперёд.
     static void writeInt(ofstream& out, int value, int bytes)
     {
         for (int k = 0; k < bytes; k++)
+        {
             out.put(static_cast<char>((value >> (8 * k)) & 0xFF));
+        }
     }
 
     static constexpr unsigned WHITE{ 0xFFFFFF };
@@ -454,7 +503,9 @@ LRESULT CALLBACK MazeWindowProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
         PAINTSTRUCT ps;
         HDC hdc = BeginPaint(hwnd, &ps);
         if (shownPicture != nullptr)
+        {
             shownPicture->paint(hdc);
+        }
         EndPaint(hwnd, &ps);
         return 0;
     }
@@ -477,20 +528,23 @@ vector<Cell> solve(PathFinder& finder, const Maze& maze)
     if (path.empty())
     {
         cout << "  Пути от входа к выходу нет." << endl;
-        maze.print(path);
-        return path;
     }
-    cout << "  Длина кратчайшего пути (число ходов): " << path.size() - 1 << ", клеток в пути: " << path.size() << endl;
-    cout << "  Шагов алгоритма: " << finder.getSteps() << endl;
-    cout << "  Путь (строка, столбец):";
-    for (int k = 0; k < static_cast<int>(path.size()); k++)
+    else
     {
-        if (k % 10 == 0)
-            cout << endl << "   "; // по 10 клеток в строке
-        cout << " (" << path[k].row + 1 << "," << path[k].col + 1 << ")";
+        cout << "  Длина кратчайшего пути (число ходов): " << path.size() - 1 << ", клеток в пути: " << path.size() << endl;
+        cout << "  Шагов алгоритма: " << finder.getSteps() << endl;
+        cout << "  Путь (строка, столбец):";
+        for (int k = 0; k < static_cast<int>(path.size()); k++)
+        {
+            if (k % 10 == 0)
+            {
+                cout << endl << "   "; // по 10 клеток в строке
+            }
+            cout << " (" << path[k].row + 1 << "," << path[k].col + 1 << ")";
+        }
+        cout << endl;
+        cout << "  Проверка пути: " << (maze.checkPath(path) ? "путь верный" : "ОШИБКА") << endl;
     }
-    cout << endl;
-    cout << "  Проверка пути: " << (maze.checkPath(path) ? "путь верный" : "ОШИБКА") << endl;
     maze.print(path);
     return path;
 }
@@ -510,20 +564,30 @@ void compare(const Maze& maze)
         valid[i] = path.empty() || maze.checkPath(path);
         cout << "  " << finders[i]->getName() << ": ";
         if (path.empty())
+        {
             cout << "пути нет";
+        }
         else
+        {
             cout << "длина пути " << lengths[i];
+        }
         cout << ", шагов алгоритма " << finders[i]->getSteps() << endl;
     }
     if (lengths[0] == lengths[1] && valid[0] && valid[1])
     {
         if (lengths[0] < 0)
+        {
             cout << "  Проверка пройдена: оба алгоритма сообщили, что пути нет." << endl;
+        }
         else
+        {
             cout << "  Проверка пройдена: оба алгоритма дали верный путь одинаковой длины." << endl;
+        }
     }
     else
+    {
         cout << "  Проверка НЕ пройдена!" << endl;
+    }
 }
 
 // Главная функция: меню для генерации лабиринта, поиска пути и вывода в окно.
@@ -565,16 +629,18 @@ int main()
             if (percent < 0 || percent > 60)
             {
                 cout << "Процент стен должен быть от 0 до 60." << endl;
-                break;
             }
-            int s = readInt("Начальное значение датчика (0 - по текущему времени): ");
-            seed = (s == 0) ? static_cast<unsigned>(time(nullptr)) : static_cast<unsigned>(s);
-            srand(seed);
-            maze = Maze(ROWS, COLS);
-            maze.generate(percent);
-            lastPath.clear();
-            cout << "Сгенерирован лабиринт (начальное значение датчика " << seed << "):" << endl;
-            maze.print(lastPath);
+            else
+            {
+                int s = readInt("Начальное значение датчика (0 - по текущему времени): ");
+                seed = (s == 0) ? static_cast<unsigned>(time(nullptr)) : static_cast<unsigned>(s);
+                srand(seed);
+                maze = Maze(ROWS, COLS);
+                maze.generate(percent);
+                lastPath.clear();
+                cout << "Сгенерирован лабиринт (начальное значение датчика " << seed << "):" << endl;
+                maze.print(lastPath);
+            }
             break;
         }
         case 2:
@@ -590,7 +656,9 @@ int main()
         {
             MazePicture picture(maze, lastPath);
             if (picture.saveBmp("maze.bmp"))
+            {
                 cout << "Рисунок сохранён в файл maze.bmp." << endl;
+            }
             picture.show();
             break;
         }

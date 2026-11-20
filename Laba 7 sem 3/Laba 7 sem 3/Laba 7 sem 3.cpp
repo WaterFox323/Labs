@@ -69,8 +69,12 @@ public:
     void generate(int p_wallPercent)
     {
         for (int i = 0; i < rows; i++)
+        {
             for (int j = 0; j < cols; j++)
+            {
                 cells[i][j] = (rand() % 100 < p_wallPercent) ? 1 : 0;
+            }
+        }
         cells[0][0] = 0;               // вход - клетка (1, 1)
         cells[rows - 1][cols - 1] = 0; // выход - клетка (m, n)
     }
@@ -108,19 +112,29 @@ public:
     bool checkPath(const vector<Cell>& p_path) const
     {
         if (p_path.empty())
+        {
             return false;
+        }
         Cell first = p_path.front();
         Cell last = p_path.back();
         if (first.row != getStart().row || first.col != getStart().col)
+        {
             return false;
+        }
         if (last.row != getFinish().row || last.col != getFinish().col)
+        {
             return false;
+        }
         for (int k = 0; k < static_cast<int>(p_path.size()); k++)
         {
             if (!isFree(p_path[k].row, p_path[k].col))
+            {
                 return false;
+            }
             if (k > 0 && abs(p_path[k].row - p_path[k - 1].row) + abs(p_path[k].col - p_path[k - 1].col) != 1)
+            {
                 return false;
+            }
         }
         return true;
     }
@@ -130,18 +144,28 @@ public:
     {
         vector<string> view(rows, string(cols, '.'));
         for (int i = 0; i < rows; i++)
+        {
             for (int j = 0; j < cols; j++)
+            {
                 if (cells[i][j] == 1)
+                {
                     view[i][j] = '#';
+                }
+            }
+        }
         for (int k = 0; k < static_cast<int>(p_path.size()); k++)
+        {
             view[p_path[k].row][p_path[k].col] = '*';
+        }
         view[0][0] = 'S';
         view[rows - 1][cols - 1] = 'F';
         for (int i = 0; i < rows; i++)
         {
             cout << "  ";
             for (int j = 0; j < cols; j++)
+            {
                 cout << view[i][j] << ' ';
+            }
             cout << endl;
         }
     }
@@ -214,7 +238,9 @@ public:
 
         vector<Cell> path;
         if (mark[finish.row][finish.col] == NO_MARK)
+        {
             return path; // волна не дошла до выхода - пути нет
+        }
 
         // 2. Обратный ход: от выхода к входу по клеткам с пометкой на 1 меньше.
         Cell cur = finish;
@@ -270,7 +296,9 @@ private:
         if (cur.row == finish.row && cur.col == finish.col)
         {
             if (optimalWay.empty() || way.size() < optimalWay.size())
+            {
                 optimalWay = way; // найден более короткий путь
+            }
             return;
         }
         int len = static_cast<int>(way.size()); // столько ходов будет сделано до соседа
@@ -312,16 +340,22 @@ public:
         : width{ p_maze.getCols() * CELL }, height{ p_maze.getRows() * CELL }, pixels(width* height, WHITE)
     {
         for (int i = 0; i < p_maze.getRows(); i++)
+        {
             for (int j = 0; j < p_maze.getCols(); j++)
             {
                 unsigned color = p_maze.isFree(i, j) ? WHITE : WALL_COLOR;
                 if (i == 0 && j == 0)
+                {
                     color = START_COLOR;
+                }
                 if (i == p_maze.getRows() - 1 && j == p_maze.getCols() - 1)
+                {
                     color = FINISH_COLOR;
+                }
                 fillRect(j * CELL, i * CELL, CELL, CELL, GRID_COLOR);              // рамка клетки
                 fillRect(j * CELL + 1, i * CELL + 1, CELL - 2, CELL - 2, color); // сама клетка
             }
+        }
         // Путь - красная линия через центры клеток.
         for (int k = 1; k < static_cast<int>(p_path.size()); k++)
         {
@@ -336,7 +370,9 @@ public:
     {
         ofstream out(p_fileName, ios::binary);
         if (!out)
+        {
             return false;
+        }
         int rowSize = (width * 3 + 3) / 4 * 4; // строка BMP дополняется до кратной 4 байтам
         int dataSize = rowSize * height;
         out << 'B' << 'M';
@@ -364,7 +400,9 @@ public:
                 out.put(static_cast<char>((p >> 16) & 0xFF)); // красный
             }
             for (int k = width * 3; k < rowSize; k++)
+            {
                 out.put(0);
+            }
         }
         return true;
     }
@@ -422,14 +460,20 @@ private:
     void fillRect(int x, int y, int w, int h, unsigned color)
     {
         for (int yy = max(y, 0); yy < min(y + h, height); yy++)
+        {
             for (int xx = max(x, 0); xx < min(x + w, width); xx++)
+            {
                 pixels[yy * width + xx] = color;
+            }
+        }
     }
     // Записывает целое число в файл младшими байтами вперёд.
     static void writeInt(ofstream& out, int value, int bytes)
     {
         for (int k = 0; k < bytes; k++)
+        {
             out.put(static_cast<char>((value >> (8 * k)) & 0xFF));
+        }
     }
 
     static constexpr unsigned WHITE{ 0xFFFFFF };
@@ -454,7 +498,9 @@ LRESULT CALLBACK MazeWindowProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
         PAINTSTRUCT ps;
         HDC hdc = BeginPaint(hwnd, &ps);
         if (shownPicture != nullptr)
+        {
             shownPicture->paint(hdc);
+        }
         EndPaint(hwnd, &ps);
         return 0;
     }
@@ -486,7 +532,9 @@ vector<Cell> solve(PathFinder& finder, const Maze& maze)
     for (int k = 0; k < static_cast<int>(path.size()); k++)
     {
         if (k % 10 == 0)
+        {
             cout << endl << "   "; // по 10 клеток в строке
+        }
         cout << " (" << path[k].row + 1 << "," << path[k].col + 1 << ")";
     }
     cout << endl;
@@ -510,20 +558,30 @@ void compare(const Maze& maze)
         valid[i] = path.empty() || maze.checkPath(path);
         cout << "  " << finders[i]->getName() << ": ";
         if (path.empty())
+        {
             cout << "пути нет";
+        }
         else
+        {
             cout << "длина пути " << lengths[i];
+        }
         cout << ", шагов алгоритма " << finders[i]->getSteps() << endl;
     }
     if (lengths[0] == lengths[1] && valid[0] && valid[1])
     {
         if (lengths[0] < 0)
+        {
             cout << "  Проверка пройдена: оба алгоритма сообщили, что пути нет." << endl;
+        }
         else
+        {
             cout << "  Проверка пройдена: оба алгоритма дали верный путь одинаковой длины." << endl;
+        }
     }
     else
+    {
         cout << "  Проверка НЕ пройдена!" << endl;
+    }
 }
 
 // Главная функция: меню для генерации лабиринта, поиска пути и вывода в окно.
@@ -590,7 +648,9 @@ int main()
         {
             MazePicture picture(maze, lastPath);
             if (picture.saveBmp("maze.bmp"))
+            {
                 cout << "Рисунок сохранён в файл maze.bmp." << endl;
+            }
             picture.show();
             break;
         }

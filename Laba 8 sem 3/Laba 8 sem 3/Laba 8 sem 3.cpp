@@ -22,23 +22,19 @@ const int INF{ 1000000 }; // «бесконечность»: билета меж
 // Если введено не число, сообщает об ошибке, очищает поток и спрашивает снова.
 int readInt(string prompt)
 {
-    int x{};
-    bool ok{ false }; // введено ли целое число
-    while (!ok)
+    int x;
+    while (true)
     {
         cout << prompt;
         if (cin >> x)
         {
-            ok = true;
+            cin.ignore(numeric_limits<streamsize>::max(), '\n'); // убираем остаток строки
+            return x;
         }
-        else
-        {
-            cout << "  Ошибка: нужно ввести целое число." << endl;
-            cin.clear(); // сбрасываем флаг ошибки потока
-        }
-        cin.ignore(numeric_limits<streamsize>::max(), '\n'); // убираем остаток строки (или неверный ввод)
+        cout << "  Ошибка: нужно ввести целое число." << endl;
+        cin.clear(); // сбрасываем флаг ошибки потока
+        cin.ignore(numeric_limits<streamsize>::max(), '\n'); // удаляем неверный ввод
     }
-    return x;
 }
 
 // Возвращает путь в виде строки «1 -> 2 -> 8».
@@ -48,9 +44,7 @@ string pathToString(const vector<int>& path)
     for (int k = 0; k < static_cast<int>(path.size()); k++)
     {
         if (k > 0)
-        {
             s += " -> ";
-        }
         s += to_string(path[k]);
     }
     return s;
@@ -65,9 +59,7 @@ public:
     Graph(int p_n) : n{ p_n }, weight(p_n + 1, vector<int>(p_n + 1, INF))
     {
         for (int i = 1; i <= n; i++)
-        {
             weight[i][i] = 0;
-        }
     }
 
     // Добавляет ребро a - b стоимостью p_cost (билет продаётся в обе стороны).
@@ -92,9 +84,7 @@ public:
     {
         cout << "     ";
         for (int j = 1; j <= n; j++)
-        {
             cout << setw(4) << j;
-        }
         cout << endl;
         for (int i = 1; i <= n; i++)
         {
@@ -102,13 +92,9 @@ public:
             for (int j = 1; j <= n; j++)
             {
                 if (weight[i][j] == INF)
-                {
                     cout << setw(4) << "-";
-                }
                 else
-                {
                     cout << setw(4) << weight[i][j];
-                }
             }
             cout << endl;
         }
@@ -139,14 +125,11 @@ public:
     // Восстанавливает маршрут из start в v по массиву предшественников prev.
     vector<int> getPath(int v) const
     {
-        vector<int> path; // если маршрута нет, путь останется пустым
-        if (dist[v] != INF)
-        {
-            for (int u = v; u != 0; u = prev[u])
-            {
-                path.insert(path.begin(), u); // добавляем город в начало маршрута
-            }
-        }
+        vector<int> path;
+        if (dist[v] == INF)
+            return path;
+        for (int u = v; u != 0; u = prev[u])
+            path.insert(path.begin(), u); // добавляем город в начало маршрута
         return path;
     }
 
@@ -155,18 +138,13 @@ public:
     {
         for (int v = 1; v <= graph.getN(); v++)
         {
-            if (v != start) // маршрут из города в него самого не выводим
-            {
-                cout << "  " << start << " -> " << v << ": ";
-                if (dist[v] == INF)
-                {
-                    cout << "маршрута нет" << endl;
-                }
-                else
-                {
-                    cout << setw(3) << dist[v] << " руб.   " << pathToString(getPath(v)) << endl;
-                }
-            }
+            if (v == start)
+                continue;
+            cout << "  " << start << " -> " << v << ": ";
+            if (dist[v] == INF)
+                cout << "маршрута нет" << endl;
+            else
+                cout << setw(3) << dist[v] << " руб.   " << pathToString(getPath(v)) << endl;
         }
     }
 
@@ -196,17 +174,11 @@ private:
             // Шаг 5: среди невыделенных вершин ищем вершину с минимальным конечным весом.
             int next = 0;
             for (int v = 1; v <= n; v++)
-            {
                 if (!selected[v] && dist[v] != INF && (next == 0 || dist[v] < dist[next]))
-                {
                     next = v;
-                }
-            }
             cur = next;           // если next = 0, все оставшиеся вершины недостижимы - конец
             if (cur != 0)
-            {
                 selected[cur] = true; // шаг 5: вершина выделена; шаг 6 не нужен (ищем пути во все города); шаг 7 - к шагу 4
-            }
         }
     }
 
@@ -229,29 +201,21 @@ public:
         s.assign(n + 1, vector<int>(n + 1, 0));
         // Шаг 0: A0 - матрица стоимостей билетов, S0[i][j] = j, на диагонали нули.
         for (int i = 1; i <= n; i++)
-        {
             for (int j = 1; j <= n; j++)
             {
                 a[i][j] = p_graph.getWeight(i, j);
                 s[i][j] = (i == j) ? 0 : j;
             }
-        }
         // Основной шаг k: строка и столбец k ведущие.
         for (int k = 1; k <= n; k++)
-        {
             for (int i = 1; i <= n; i++)
-            {
                 for (int j = 1; j <= n; j++)
-                {
                     if (i != k && j != k && i != j && a[i][k] != INF && a[k][j] != INF
                         && a[i][k] + a[k][j] < a[i][j])
                     {
                         a[i][j] = a[i][k] + a[k][j]; // путь i -> k -> j дешевле
                         s[i][j] = k;
                     }
-                }
-            }
-        }
     }
 
     // Возвращает стоимость самого дешёвого маршрута из i в j.
@@ -263,15 +227,12 @@ public:
     // Восстанавливает маршрут из i в j по матрице S.
     vector<int> getPath(int i, int j) const
     {
-        vector<int> path; // если маршрута нет, путь останется пустым
-        if (a[i][j] != INF)
-        {
-            path.push_back(i);
-            if (i != j)
-            {
-                addPath(i, j, path);
-            }
-        }
+        vector<int> path;
+        if (a[i][j] == INF)
+            return path;
+        path.push_back(i);
+        if (i != j)
+            addPath(i, j, path);
         return path;
     }
 
@@ -292,12 +253,10 @@ private:
         if (k == j)
         {
             path.push_back(j); // прямой билет
+            return;
         }
-        else
-        {
-            addPath(i, k, path); // сначала маршрут i -> k,
-            addPath(k, j, path); // затем маршрут k -> j
-        }
+        addPath(i, k, path); // сначала маршрут i -> k,
+        addPath(k, j, path); // затем маршрут k -> j
     }
 
     // Выводит матрицу m с номерами строк и столбцов.
@@ -305,9 +264,7 @@ private:
     {
         cout << "     ";
         for (int j = 1; j <= n; j++)
-        {
             cout << setw(4) << j;
-        }
         cout << endl;
         for (int i = 1; i <= n; i++)
         {
@@ -315,13 +272,9 @@ private:
             for (int j = 1; j <= n; j++)
             {
                 if (m[i][j] == INF)
-                {
                     cout << setw(4) << "-";
-                }
                 else
-                {
                     cout << setw(4) << m[i][j];
-                }
             }
             cout << endl;
         }
@@ -370,15 +323,11 @@ public:
         {
             out << setw(5) << r + 1 << ".  " << pathToString(routes[r].order) << "   " << setw(4) << routes[r].cost << " руб.";
             if (routes[r].cost == bestCost)
-            {
                 out << "   <-- ОПТИМАЛЬНЫЙ";
-            }
             out << endl;
         }
         if (impossible > 0)
-        {
             out << "Невозможных порядков (нет маршрута между городами): " << impossible << endl;
-        }
     }
 
     // Выводит оптимальные маршруты с пересадками и стоимостью каждого переезда.
@@ -387,35 +336,30 @@ public:
         if (bestCost == INF)
         {
             cout << "Объехать всех друзей и вернуться домой невозможно." << endl;
+            return;
         }
-        else
+        int number = 0;
+        for (int r = 0; r < static_cast<int>(routes.size()); r++)
         {
-            int number = 0;
-            for (int r = 0; r < static_cast<int>(routes.size()); r++)
+            if (routes[r].cost != bestCost)
+                continue;
+            number++;
+            cout << "Оптимальный маршрут " << number << " (вариант № " << r + 1 << "): "
+                << pathToString(routes[r].order) << endl;
+            vector<int> full; // маршрут со всеми пересадками
+            full.push_back(home);
+            for (int k = 1; k < static_cast<int>(routes[r].order.size()); k++)
             {
-                if (routes[r].cost == bestCost) // выводим только оптимальные маршруты
-                {
-                    number++;
-                    cout << "Оптимальный маршрут " << number << " (вариант № " << r + 1 << "): "
-                        << pathToString(routes[r].order) << endl;
-                    vector<int> full; // маршрут со всеми пересадками
-                    full.push_back(home);
-                    for (int k = 1; k < static_cast<int>(routes[r].order.size()); k++)
-                    {
-                        int from = routes[r].order[k - 1];
-                        int to = routes[r].order[k];
-                        vector<int> leg = floyd.getPath(from, to);
-                        cout << "    " << from << " -> " << to << ": " << setw(3) << floyd.getDist(from, to)
-                            << " руб.  (" << pathToString(leg) << ")" << endl;
-                        for (int t = 1; t < static_cast<int>(leg.size()); t++)
-                        {
-                            full.push_back(leg[t]);
-                        }
-                    }
-                    cout << "    Поездка с пересадками: " << pathToString(full) << endl;
-                    cout << "    Итого: " << bestCost << " руб." << endl;
-                }
+                int from = routes[r].order[k - 1];
+                int to = routes[r].order[k];
+                vector<int> leg = floyd.getPath(from, to);
+                cout << "    " << from << " -> " << to << ": " << setw(3) << floyd.getDist(from, to)
+                    << " руб.  (" << pathToString(leg) << ")" << endl;
+                for (int t = 1; t < static_cast<int>(leg.size()); t++)
+                    full.push_back(leg[t]);
             }
+            cout << "    Поездка с пересадками: " << pathToString(full) << endl;
+            cout << "    Итого: " << bestCost << " руб." << endl;
         }
     }
 
@@ -434,32 +378,25 @@ private:
                 cost = (d == INF) ? INF : cost + d;
             }
             if (cost == INF)
-            {
                 impossible++;
-            }
             else
             {
                 routes.push_back({ order, cost });
                 if (cost < bestCost)
-                {
                     bestCost = cost;
-                }
             }
             order.pop_back();
+            return;
         }
-        else
+        for (int v = 1; v <= n; v++)
         {
-            for (int v = 1; v <= n; v++)
-            {
-                if (!used[v]) // города v ещё нет в маршруте
-                {
-                    used[v] = true;
-                    order.push_back(v);
-                    search(level + 1);
-                    order.pop_back(); // возврат: убираем друга, пробуем следующего
-                    used[v] = false;
-                }
-            }
+            if (used[v])
+                continue;
+            used[v] = true;
+            order.push_back(v);
+            search(level + 1);
+            order.pop_back(); // возврат: убираем друга, пробуем следующего
+            used[v] = false;
         }
     }
 
@@ -503,20 +440,16 @@ void checkAlgorithms(const Graph& graph, const Floyd& floyd)
     {
         Dijkstra dijkstra(graph, i);
         for (int j = 1; j <= n; j++)
-        {
             if (dijkstra.getDist(j) != floyd.getDist(i, j))
             {
                 errors++;
                 cout << "  Расхождение для пары " << i << " - " << j << ": Дейкстра " << dijkstra.getDist(j)
                     << ", Флойд " << floyd.getDist(i, j) << endl;
             }
-        }
     }
     cout << "Проверено пар городов: " << n * n << ", расхождений: " << errors << endl;
     if (errors == 0)
-    {
         cout << "Проверка пройдена: алгоритмы Дейкстры и Флойда дали одинаковые стоимости." << endl;
-    }
 }
 
 // Главная функция: построение графа варианта 4 и меню.
@@ -565,20 +498,14 @@ int main()
             floyd.print();
             cout << "Маршруты из города " << HOME << " по матрице S:" << endl;
             for (int v = 1; v <= graph.getN(); v++)
-            {
                 if (v != HOME)
                 {
                     cout << "  " << HOME << " -> " << v << ": ";
                     if (floyd.getDist(HOME, v) == INF)
-                    {
                         cout << "маршрута нет" << endl;
-                    }
                     else
-                    {
                         cout << setw(3) << floyd.getDist(HOME, v) << " руб.   " << pathToString(floyd.getPath(HOME, v)) << endl;
-                    }
                 }
-            }
             break;
         }
         case 4:
@@ -586,13 +513,9 @@ int main()
             planner.printAll(cout);
             cout << "Всего маршрутов: " << planner.getCount() << endl;
             if (planner.getBestCost() == INF)
-            {
                 cout << "Объехать всех друзей невозможно." << endl;
-            }
             else
-            {
                 cout << "Наименьшая стоимость поездки: " << planner.getBestCost() << " руб." << endl;
-            }
             ofstream file("routes.txt");
             if (file)
             {
